@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offcut — How It Works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F7F2E7;
+    --paper-2:#EFE7D4;
+    --paper-line:#E2D7BE;
+    --ink:#211C16;
+    --ink-soft:#544C40;
+    --ink-faint:#8A8071;
+    --green:#1E3D2F;
+    --green-2:#2F5C44;
+    --green-soft:#E7EDE5;
+    --sticker:#DD4A29;
+    --sticker-deep:#B7351A;
+    --gold:#CC9A37;
+  }
+
+  *{box-sizing:border-box;}
+
+  html{scroll-behavior:smooth;}
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at 12% 8%, rgba(204,154,55,.07), transparent 36%),
+      radial-gradient(circle at 88% 92%, rgba(30,61,47,.07), transparent 40%),
+      var(--paper-2);
+    color:var(--ink);
+    font-family:'Hanken Grotesk',sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    padding:40px 20px;
+  }
+
+  /* faint paper grain */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    opacity:.4;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+  }
+
+  .doc{
+    position:relative;
+    z-index:1;
+    max-width:860px;
+    margin:0 auto;
+    background:var(--paper);
+    box-shadow:0 30px 80px -30px rgba(33,28,22,.4), 0 4px 12px rgba(33,28,22,.08);
+    border:1px solid var(--paper-line);
+  }
+
+  /* ---------- shared section frame ---------- */
+  section{padding:64px 72px;border-bottom:1px solid var(--paper-line);}
+  section:last-child{border-bottom:none;}
+
+  .kicker{
+    font-family:'Hanken Grotesk',sans-serif;
+    font-size:12px;
+    font-weight:700;
+    letter-spacing:.22em;
+    text-transform:uppercase;
+    color:var(--sticker-deep);
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin:0 0 18px;
+  }
+  .kicker .num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:26px;height:26px;
+    border-radius:50%;
+    background:var(--green);
+    color:var(--paper);
+    font-size:12px;
+    letter-spacing:0;
+  }
+
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;line-height:1.08;letter-spacing:-.01em;margin:0;}
+  h2{font-size:38px;color:var(--green);margin-bottom:20px;}
+  h3{font-size:21px;color:var(--ink);margin-bottom:8px;}
+  p{margin:0 0 16px;color:var(--ink-soft);}
+  p strong{color:var(--ink);font-weight:600;}
+  .lead{font-size:18px;color:var(--ink);}
+
+  /* ---------- cover ---------- */
+  .cover{
+    background:
+      linear-gradient(155deg, var(--green) 0%, #16301F 100%);
+    color:var(--paper);
+    padding:72px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:6px solid var(--sticker);
+  }
+  .cover::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Cpath d='M0 39.5 H40 M39.5 0 V40' stroke='%23ffffff' stroke-opacity='.04' /%3E%3C/svg%3E");
+    pointer-events:none;
+  }
+  .brand{
+    font-family:'Fraunces',serif;
+    font-weight:900;
+    font-size:15px;
+    letter-spacing:.32em;
+    text-transform:uppercase;
+    color:var(--gold);
+    margin:0 0 40px;
+    position:relative;
+  }
+  .cover h1{
+    font-size:74px;
+    font-weight:600;
+    color:var(--paper);
+    max-width:14ch;
+    position:relative;
+  }
+  .cover h1 em{font-style:italic;color:var(--gold);}
+  .cover .sub{
+    font-size:19px;
+    color:rgba(247,242,231,.82);
+    max-width:46ch;
+    margin:26px 0 0;
+    position:relative;
+  }
+  .cover .meta{
+    margin-top:48px;
+    display:flex;
+    gap:36px;
+    flex-wrap:wrap;
+    font-size:13px;
+    letter-spacing:.04em;
+    color:rgba(247,242,231,.6);
+    position:relative;
+  }
+  .cover .meta b{display:block;color:var(--paper);font-weight:600;font-size:15px;letter-spacing:0;margin-top:2px;}
+
+  /* discount sticker */
+  .sticker-badge{
+    position:absolute;
+    top:54px;right:64px;
+    width:118px;height:118px;
+    background:var(--sticker);
+    border-radius:50%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    transform:rotate(-12deg);
+    box-shadow:0 14px 30px -8px rgba(0,0,0,.5);
+    border:3px dashed rgba(255,255,255,.55);
+  }
+  .sticker-badge span{font-family:'Fraunces',serif;color:#fff;}
+  .sticker-badge .top{font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:600;}
+  .sticker-badge .big{font-size:34px;font-weight:900;line-height:1;}
+  .sticker-badge .low{font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.9;}
+
+  /* ---------- problem stat row ---------- */
+  .problem-tag{
+    display:inline-block;
+    background:var(--paper-2);
+    border:1px dashed var(--ink-faint);
+    border-radius:8px;
+    padding:14px 18px;
+    font-family:'Fraunces',serif;
+    color:var(--green);
+    font-size:17px;
+    margin-top:8px;
+  }
+
+  /* ---------- step flow ---------- */
+  .steps{display:flex;flex-direction:column;gap:0;margin-top:10px;counter-reset:step;}
+  .step{
+    display:grid;
+    grid-template-columns:54px 1fr;
+    gap:22px;
+    padding:22px 0;
+    border-bottom:1px solid var(--paper-line);
+  }
+  .step:last-child{border-bottom:none;}
+  .step .dot{
+    counter-increment:step;
+    width:54px;height:54px;
+    border-radius:14px;
+    background:var(--green-soft);
+    border:1.5px solid var(--green);
+    color:var(--green);
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:24px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .step .dot::before{content:counter(step);}
+  .step h3{margin-bottom:4px;}
+  .step p{margin:0;font-size:15px;}
+
+  /* ---------- look-at cards ---------- */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;}
+  .card{
+    background:var(--paper-2);
+    border:1px solid var(--paper-line);
+    border-left:4px solid var(--sticker);
+    border-radius:10px;
+    padding:20px 22px;
+  }
+  .card h3{font-size:17px;color:var(--green);margin-bottom:6px;}
+  .card p{font-size:14.5px;margin:0;}
+
+  /* ---------- guardrails ---------- */
+  .rails{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:14px;}
+  .rails li{
+    display:grid;
+    grid-template-columns:30px 1fr;
+    gap:14px;
+    align-items:start;
+  }
+  .rails .ic{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--green);color:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    font-size:15px;flex-shrink:0;margin-top:2px;
+  }
+  .rails b{color:var(--ink);font-weight:600;}
+  .rails span{display:block;color:var(--ink-soft);font-size:15px;}
+
+  /* ---------- evidence ---------- */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:8px 0 26px;}
+  .stat{
+    background:var(--green);
+    color:var(--paper);
+    border-radius:14px;
+    padding:26px 22px;
+    text-align:center;
+    position:relative;
+    overflow:hidden;
+  }
+  .stat .fig{font-family:'Fraunces',serif;font-weight:900;font-size:44px;line-height:1;color:var(--gold);}
+  .stat .lab{font-size:13px;margin-top:10px;color:rgba(247,242,231,.85);line-height:1.4;}
+  .honesty{
+    background:#FBF4E1;
+    border:1.5px solid var(--gold);
+    border-radius:12px;
+    padding:22px 24px;
+  }
+  .honesty h3{font-size:16px;color:var(--sticker-deep);display:flex;align-items:center;gap:9px;margin-bottom:8px;}
+  .honesty p{font-size:14.5px;margin:0;}
+
+  /* ---------- pilot timeline ---------- */
+  .phase{
+    border-left:2px solid var(--green);
+    padding:0 0 26px 26px;
+    margin-left:8px;
+    position:relative;
+  }
+  .phase:last-child{padding-bottom:0;}
+  .phase::before{
+    content:"";position:absolute;left:-8px;top:2px;
+    width:14px;height:14px;border-radius:50%;
+    background:var(--sticker);border:3px solid var(--paper);
+  }
+  .phase h3{font-size:18px;margin-bottom:4px;}
+  .phase .when{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--green-2);margin-bottom:6px;}
+  .phase p{font-size:15px;margin:0;}
+
+  /* ---------- need / limits two-up ---------- */
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:30px;}
+  .twocol h3{font-size:18px;margin-bottom:12px;}
+  .clean{list-style:none;padding:0;margin:0;display:grid;gap:11px;}
+  .clean li{font-size:14.5px;color:var(--ink-soft);padding-left:24px;position:relative;}
+  .clean li::before{content:"";position:absolute;left:0;top:9px;width:9px;height:9px;border-radius:2px;background:var(--sticker);transform:rotate(45deg);}
+
+  /* ---------- closing ---------- */
+  .closing{background:var(--green);color:var(--paper);text-align:center;padding:64px 72px;}
+  .closing h2{color:var(--paper);font-size:34px;margin-bottom:16px;}
+  .closing p{color:rgba(247,242,231,.85);max-width:48ch;margin:0 auto 28px;}
+  .cta{
+    display:inline-block;
+    background:var(--sticker);
+    color:#fff;
+    font-weight:700;
+    text-decoration:none;
+    padding:15px 34px;
+    border-radius:40px;
+    letter-spacing:.02em;
+    box-shadow:0 12px 24px -8px rgba(0,0,0,.45);
+  }
+  .closing .fineprint{margin-top:26px;font-size:12px;color:rgba(247,242,231,.55);letter-spacing:.03em;}
+
+  /* ---------- load animation ---------- */
+  .reveal{opacity:0;transform:translateY(14px);animation:rise .7s cubic-bezier(.2,.7,.2,1) forwards;}
+  @keyframes rise{to{opacity:1;transform:none;}}
+  section.reveal:nth-of-type(1){animation-delay:.05s;}
+
+  /* ---------- responsive ---------- */
+  @media (max-width:680px){
+    body{padding:16px 8px;}
+    section,.cover,.closing{padding:40px 26px;}
+    .cover h1{font-size:46px;}
+    h2{font-size:30px;}
+    .grid,.stats,.twocol{grid-template-columns:1fr;}
+    .sticker-badge{width:88px;height:88px;top:30px;right:26px;}
+    .sticker-badge .big{font-size:26px;}
+  }
+
+  /* ---------- print ---------- */
+  @media print{
+    body{background:#fff;padding:0;}
+    body::before{display:none;}
+    .doc{box-shadow:none;border:none;max-width:none;}
+    .reveal{opacity:1;transform:none;animation:none;}
+    section,.cover{page-break-inside:avoid;}
+    .cta{border:1px solid var(--sticker);}
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <!-- COVER -->
+  <header class="cover reveal">
+    <div class="sticker-badge">
+      <span class="top">Less</span>
+      <span class="big">Waste</span>
+      <span class="low">More margin</span>
+    </div>
+    <p class="brand">Offcut</p>
+    <h1>The right markdown, on the right item, at the <em>right time</em>.</h1>
+    <p class="sub">Offcut is a quiet helper for fresh-food shops. It tells your team exactly how much to mark each item down, and when, so you sell more before it spoils and keep more of your margin.</p>
+    <div class="meta">
+      <div>Built for<b>Butchers, bakeries, seafood, delis &amp; grocers</b></div>
+      <div>What it replaces<b>Markdown guesswork</b></div>
+      <div>Stage<b>Pilot partners wanted</b></div>
+    </div>
+  </header>
+
+  <!-- 1. THE PROBLEM -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">1</span>The problem you already know</p>
+    <h2>Fresh stock is a race against the clock.</h2>
+    <p class="lead">Every morning you put out stock that has to sell before it spoils. Some of it will not. When it does not sell, you do not just lose the sale, you have already paid for the product, so it costs you twice.</p>
+    <p>The usual fix is a markdown sticker. But the big questions are guesswork: <strong>which</strong> items, <strong>how much</strong> off, and <strong>how early</strong> in the day. Mark down too soon or too deep and you give away margin you did not need to. Leave it too late and it goes in the bin anyway.</p>
+    <p class="problem-tag">Offcut takes that one decision and gets it right, item by item, every day.</p>
+  </section>
+
+  <!-- 2. WHAT IT IS -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">2</span>What Offcut actually is</p>
+    <h2>A markdown advisor that runs in the background.</h2>
+    <p>Think of it as an extra set of eyes that watches your fresh stock all day and works out the smartest price for anything at risk of not selling. It does not change your prices on its own. It hands your team a simple list: <strong>this item, this much off, now</strong>. Your staff stay in control and decide whether to act.</p>
+    <p>Its single goal is the number that actually matters to you: <strong>the most profit left in your till after waste is counted</strong>. Not the most sales, not the least waste on its own, but the best balance of the two.</p>
+  </section>
+
+  <!-- 3. HOW IT WORKS -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">3</span>How it works, step by step</p>
+    <h2>From shelf to sticker in five plain steps.</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="dot"></div>
+        <div>
+          <h3>It reads your stock</h3>
+          <p>It looks at what is on the shelf today, how much there is, when each batch was made, and when it expires.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="dot"></div>
+        <div>
+          <h3>It works out the likely demand</h3>
+          <p>Using your own sales history, it estimates how much of each item should sell today, allowing for the day of the week and the time of day. Saturdays sell harder than Mondays, and mornings differ from late afternoon.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="dot"></div>
+        <div>
+          <h3>It tests every markdown</h3>
+          <p>It quietly tries each price step, full price, 10% off, 20%, and so on, and estimates the profit after waste for each one. A bigger discount sells more but earns less per unit. It finds the sweet spot.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="dot"></div>
+        <div>
+          <h3>It recommends the winner</h3>
+          <p>It puts the best option on a simple action list for your team: which items to reduce, by how much, and the few to keep an eye on.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="dot"></div>
+        <div>
+          <h3>It keeps watching as the day goes</h3>
+          <p>As real sales come through your till, it updates its view. If something is moving slower than expected, it nudges the recommendation before it is too late.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. WHAT IT LOOKS AT -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">4</span>What it weighs up</p>
+    <h2>The things a good shopkeeper considers, every time.</h2>
+    <p>You weigh these up in your head already. Offcut does it for every item at once, with no items forgotten and no mood swings.</p>
+    <div class="grid">
+      <div class="card"><h3>How much is left</h3><p>More stock than the day can realistically clear means more risk, and a stronger case for acting early.</p></div>
+      <div class="card"><h3>How fast it is selling today</h3><p>If something has barely moved despite a busy morning, that is a warning sign it reads in real time.</p></div>
+      <div class="card"><h3>How close to expiry</h3><p>An item with hours left is treated very differently from one with two days of shelf life to go.</p></div>
+      <div class="card"><h3>How shoppers react to price</h3><p>A small discount shifts some products a lot and others barely at all. It learns the difference per category.</p></div>
+      <div class="card"><h3>How much of the day is left</h3><p>A markdown at 9am has all day to work. The same markdown at 5pm has almost no time, so the maths changes.</p></div>
+      <div class="card"><h3>Your real cost and margin</h3><p>It always knows what each item cost you, so it never trades away more margin than it needs to.</p></div>
+    </div>
+  </section>
+
+  <!-- 5. GUARDRAILS -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">5</span>The built-in common sense</p>
+    <h2>Sensible limits so it never does something silly.</h2>
+    <p>Offcut has firm rules that stop it from over-reacting. These are not optional extras, they are part of how it thinks.</p>
+    <ul class="rails">
+      <li><span class="ic">&#10003;</span><span><b>It will not fire-sale too early.</b> Deep clearance discounts are only allowed when an item is genuinely old and genuinely overstocked, and only when a gentler discount clearly will not be enough.</span></li>
+      <li><span class="ic">&#10003;</span><span><b>It avoids selling below cost.</b> It will only ever go below cost on the final day, and only when binning the item would lose you even more. The rest of the time, your cost is a hard floor.</span></li>
+      <li><span class="ic">&#10003;</span><span><b>It keeps older stock cheaper than fresh.</b> The older batch of the same product is never priced above a fresher one, so customers are never asked to pay more for less fresh.</span></li>
+      <li><span class="ic">&#10003;</span><span><b>It will not chase pointless discounts.</b> A deeper markdown has to clearly beat a smaller one before it is recommended. If a small reduction does the job, that is what you get.</span></li>
+      <li><span class="ic">&#10003;</span><span><b>It holds its nerve on fresh stock.</b> Items with days of shelf life left are left at full price unless there is a real overstock and a real gain from acting.</span></li>
+    </ul>
+  </section>
+
+  <!-- 6. EVIDENCE -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">6</span>Does it actually work?</p>
+    <h2>What the testing shows so far.</h2>
+    <p>Before going near a real shop, Offcut was put through tens of thousands of simulated trading days across different store types and conditions, and measured against the common markdown habits shops use today (do nothing, panic-discount at the end, fixed reductions, and so on).</p>
+    <div class="stats">
+      <div class="stat"><div class="fig">~38%</div><div class="lab">less waste than running no markdowns at all</div></div>
+      <div class="stat"><div class="fig">~25%</div><div class="lab">more gross profit than running no markdowns</div></div>
+      <div class="stat"><div class="fig">7 in 10+</div><div class="lab">simulated days where it beat the best common rule</div></div>
+    </div>
+    <p>In tougher, more realistic tests it kept beating the smartest simple rule on profit most of the time, while also cutting waste. It is not flawless: when staff act on the list hours late, or when a product barely responds to price, the edge shrinks. We would rather tell you that up front.</p>
+    <div class="honesty">
+      <h3>&#9888; The honest part</h3>
+      <p>These results come from careful simulations, not yet from a live shop. Simulations are a strong sign, but they are not proof for <em>your</em> shop. That is exactly what a pilot is for: to measure the real result on your real stock before you change a single price. We will never dress up a test number as a guarantee.</p>
+    </div>
+  </section>
+
+  <!-- 7. PILOT -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">7</span>How a pilot works</p>
+    <h2>You see the proof before you take any risk.</h2>
+    <div class="phase">
+      <p class="when">Step one</p>
+      <h3>Shadow mode</h3>
+      <p>Offcut connects to your till data and produces its daily recommendations, but you do not have to act on any of them. It simply runs alongside your normal routine so we can compare what it suggested against what actually happened.</p>
+    </div>
+    <div class="phase">
+      <p class="when">Step two</p>
+      <h3>Honest scorecard</h3>
+      <p>We show you, in plain numbers, how its calls would have played out against your usual approach. No spin. If it would not have helped your shop, you will see that too.</p>
+    </div>
+    <div class="phase">
+      <p class="when">Step three</p>
+      <h3>Switch on, if it earns it</h3>
+      <p>Only once the numbers stack up for your shop do you start acting on the live list. You stay in control of every price the whole way through.</p>
+    </div>
+  </section>
+
+  <!-- 8. NEED + LIMITS -->
+  <section class="reveal">
+    <p class="kicker"><span class="num">8</span>The fine print, in plain words</p>
+    <h2>What we need, and where it falls short.</h2>
+    <div class="twocol">
+      <div>
+        <h3>What we need from you</h3>
+        <ul class="clean">
+          <li>Access to your till or point-of-sale sales data, so it can learn your shop.</li>
+          <li>A rough record of what spoils, so it can learn from real waste, not guesses.</li>
+          <li>Staff who can action the markdown list reasonably promptly. The advice goes stale if it sits for hours.</li>
+          <li>A bit of patience during shadow mode while it tunes to your shop.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Where it is still limited</h3>
+        <ul class="clean">
+          <li>It is proven in simulation, not yet across many live shops. You would be an early partner.</li>
+          <li>A brand-new product category needs a settling-in period before it advises on it.</li>
+          <li>It works best when markdowns are actioned on time. Long delays blunt the benefit.</li>
+          <li>It does not yet handle food-safety or staffing rules, so your team's judgement always comes first.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section class="closing reveal">
+    <h2>Want to see what it would do in your shop?</h2>
+    <p>A shadow-mode pilot costs you nothing in changed prices and shows you real numbers on your own stock. If it does not earn its place, you walk away knowing exactly where you stand.</p>
+    <a class="cta" href="#">Start a no-risk pilot</a>
+    <p class="fineprint">Offcut &middot; markdown intelligence for fresh-food retailers &middot; [your contact details here]</p>
+  </section>
+
+</div>
+</body>
+</html>
