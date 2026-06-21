@@ -34,34 +34,42 @@ BULK_HISTORY_TXT = "FUT86_16.txt"
 ANNUAL_URL_TEMPLATE = f"{BASE_URL}/deacot{{year}}.zip"
 ANNUAL_TXT = "annual.txt"
 
-# Columns we need, with fallbacks for minor naming variations across eras of
-# the file. The first matching candidate found in the loaded frame is used.
-# Note: CFTC's actual Legacy report headers abbreviate "Commercial" to "Comm"
-# and "Noncommercial" to "NonComm" (e.g. "Comm_Positions_Long_All"), which is
-# easy to get wrong by analogy with the spelled-out field descriptions in
-# CFTC's prose documentation -- the unabbreviated forms are kept as fallbacks
-# in case a different file era spells them out.
+# Columns we need, with fallbacks for naming variations across eras of the
+# file (confirmed by inspecting the actual 1986-2016 bulk historical file,
+# which uses a "Word Word-Sub (All)" convention rather than the underscored
+# "Word_Word_All" convention used by CFTC's newer Socrata-style annual
+# exports -- both are kept as candidates since the bulk and annual files are
+# different vintages). The first matching candidate found in the loaded
+# frame is used.
 COLUMN_CANDIDATES = {
     "market": ["Market_and_Exchange_Names", "Market and Exchange Names"],
-    "report_date": ["Report_Date_as_YYYY-MM-DD", "Report_Date_as_MM_DD_YYYY"],
+    "report_date": [
+        "As of Date in Form YYYY-MM-DD",
+        "Report_Date_as_YYYY-MM-DD",
+        "Report_Date_as_MM_DD_YYYY",
+    ],
     "report_date_yymmdd": ["As_of_Date_In_Form_YYMMDD", "As of Date in Form YYMMDD"],
-    "open_interest": ["Open_Interest_All", "Open_Interest"],
+    "open_interest": ["Open Interest (All)", "Open_Interest_All", "Open_Interest"],
     "commercial_long": [
+        "Commercial Positions-Long (All)",
         "Comm_Positions_Long_All",
         "Commercial_Positions_Long_All",
         "Commercial_Positions_Long",
     ],
     "commercial_short": [
+        "Commercial Positions-Short (All)",
         "Comm_Positions_Short_All",
         "Commercial_Positions_Short_All",
         "Commercial_Positions_Short",
     ],
     "noncommercial_long": [
+        "Noncommercial Positions-Long (All)",
         "NonComm_Positions_Long_All",
         "Noncommercial_Positions_Long_All",
         "Noncommercial_Positions_Long",
     ],
     "noncommercial_short": [
+        "Noncommercial Positions-Short (All)",
         "NonComm_Positions_Short_All",
         "Noncommercial_Positions_Short_All",
         "Noncommercial_Positions_Short",

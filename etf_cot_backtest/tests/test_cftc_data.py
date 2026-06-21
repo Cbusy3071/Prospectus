@@ -67,6 +67,32 @@ def test_tidy_raw_accepts_abbreviated_comm_columns():
     assert tidy["noncommercial_short"].tolist() == [20]
 
 
+def test_tidy_raw_accepts_real_bulk_historical_schema():
+    # The actual CFTC 1986-2016 bulk historical file (FUT86_16.txt) uses a
+    # "Word Word-Sub (All)" header convention, confirmed against a live
+    # download -- distinct from both of the underscored conventions above.
+    raw = pd.DataFrame(
+        [
+            {
+                "Market and Exchange Names": "GOLD - COMMODITY EXCHANGE INC.",
+                "As of Date in Form YYYY-MM-DD": "2020-01-07",
+                "Open Interest (All)": 100,
+                "Commercial Positions-Long (All)": 60,
+                "Commercial Positions-Short (All)": 40,
+                "Noncommercial Positions-Long (All)": 30,
+                "Noncommercial Positions-Short (All)": 20,
+            }
+        ]
+    )
+    tidy = _tidy_raw(raw)
+    assert tidy["date"].iloc[0] == pd.Timestamp("2020-01-07")
+    assert tidy["open_interest"].tolist() == [100]
+    assert tidy["commercial_long"].tolist() == [60]
+    assert tidy["commercial_short"].tolist() == [40]
+    assert tidy["noncommercial_long"].tolist() == [30]
+    assert tidy["noncommercial_short"].tolist() == [20]
+
+
 def test_map_to_etf_matches_known_alias():
     tidy = pd.DataFrame(
         {
