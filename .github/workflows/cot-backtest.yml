@@ -1,0 +1,34 @@
+name: ETF COT Backtest
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Backtest start date (YYYY-MM-DD)"
+        required: false
+        default: "2011-01-01"
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: etf_cot_backtest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install -r requirements.txt
+
+      - run: python -m etf_cot_backtest.cli --start "${{ github.event.inputs.start }}" --cache-dir ./data_cache --output-dir ./output
+
+      - name: Print performance summary
+        run: cat ./output/performance_summary.csv
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cot-backtest-results
+          path: etf_cot_backtest/output/
