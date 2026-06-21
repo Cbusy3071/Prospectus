@@ -106,3 +106,28 @@ def test_map_to_etf_matches_known_alias():
     mapped = _map_to_etf(tidy)
     assert list(mapped["etf"]) == ["GLD"]
     assert "market_name" not in mapped.columns
+
+
+def test_map_to_etf_sums_concurrently_reported_aliases():
+    # SPY's two aliases (E-mini and full-size S&P 500) are both real, separately
+    # reported CFTC markets on the same date, unlike other ETFs' aliases which
+    # are sequential renames of one contract -- these must collapse to one row
+    # per (date, etf) rather than crashing the downstream pivot on duplicate keys.
+    tidy = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2020-01-07", "2020-01-07"]),
+            "market_name": [
+                "E-MINI S&P 500 - CHICAGO MERCANTILE EXCHANGE",
+                "S&P 500 STOCK INDEX - CHICAGO MERCANTILE EXCHANGE",
+            ],
+            "open_interest": [1000, 200],
+            "commercial_long": [100, 20],
+            "commercial_short": [300, 60],
+        }
+    )
+    mapped = _map_to_etf(tidy)
+    assert len(mapped) == 1
+    assert mapped["etf"].iloc[0] == "SPY"
+    assert mapped["open_interest"].iloc[0] == 1200
+    assert mapped["commercial_long"].iloc[0] == 120
+    assert mapped["commercial_short"].iloc[0] == 360

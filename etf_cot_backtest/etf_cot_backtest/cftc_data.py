@@ -146,7 +146,15 @@ def _tidy_raw(raw: pd.DataFrame) -> pd.DataFrame:
 
 
 def _map_to_etf(tidy: pd.DataFrame) -> pd.DataFrame:
-    """Collapse the free-text market_name column down to our ETF universe."""
+    """Collapse the free-text market_name column down to our ETF universe.
+
+    A couple of ETFs' aliases correspond to more than one concurrently-reported
+    CFTC market rather than sequential renames of one contract -- notably SPY,
+    where CFTC reports the E-mini S&P 500 and the full-size S&P 500 STOCK INDEX
+    futures as separate rows every week since the E-mini launched in 1997. Each
+    (date, etf) pair is collapsed to a single row by summing the numeric columns
+    so every ETF has exactly one observation per report date.
+    """
     alias_to_etf = {}
     for mapping in UNIVERSE:
         for alias in mapping.cftc_market_aliases:
@@ -166,7 +174,10 @@ def _map_to_etf(tidy: pd.DataFrame) -> pd.DataFrame:
             "in the raw download and update config.UNIVERSE aliases.",
             sorted(missing),
         )
-    return matched.drop(columns=["market_name"])
+
+    matched = matched.drop(columns=["market_name"])
+    numeric_cols = [c for c in matched.columns if c not in ("date", "etf")]
+    return matched.groupby(["date", "etf"], as_index=False)[numeric_cols].sum(min_count=1)
 
 
 def fetch_legacy_cot(start_year: int = 1986, end_year: int | None = None, cache_dir: str | Path | None = None) -> pd.DataFrame:
