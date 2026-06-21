@@ -44,6 +44,29 @@ def test_tidy_raw_falls_back_to_yymmdd_date_column():
     assert tidy["date"].iloc[0] == pd.Timestamp("2020-01-07")
 
 
+def test_tidy_raw_accepts_abbreviated_comm_columns():
+    # Real CFTC Legacy files abbreviate "Commercial" to "Comm" / "Noncommercial"
+    # to "NonComm" in their actual column headers.
+    raw = pd.DataFrame(
+        [
+            {
+                "Market_and_Exchange_Names": "GOLD - COMMODITY EXCHANGE INC.",
+                "Report_Date_as_YYYY-MM-DD": "2020-01-07",
+                "Open_Interest_All": 100,
+                "Comm_Positions_Long_All": 60,
+                "Comm_Positions_Short_All": 40,
+                "NonComm_Positions_Long_All": 30,
+                "NonComm_Positions_Short_All": 20,
+            }
+        ]
+    )
+    tidy = _tidy_raw(raw)
+    assert tidy["commercial_long"].tolist() == [60]
+    assert tidy["commercial_short"].tolist() == [40]
+    assert tidy["noncommercial_long"].tolist() == [30]
+    assert tidy["noncommercial_short"].tolist() == [20]
+
+
 def test_map_to_etf_matches_known_alias():
     tidy = pd.DataFrame(
         {

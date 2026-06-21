@@ -36,15 +36,36 @@ ANNUAL_TXT = "annual.txt"
 
 # Columns we need, with fallbacks for minor naming variations across eras of
 # the file. The first matching candidate found in the loaded frame is used.
+# Note: CFTC's actual Legacy report headers abbreviate "Commercial" to "Comm"
+# and "Noncommercial" to "NonComm" (e.g. "Comm_Positions_Long_All"), which is
+# easy to get wrong by analogy with the spelled-out field descriptions in
+# CFTC's prose documentation -- the unabbreviated forms are kept as fallbacks
+# in case a different file era spells them out.
 COLUMN_CANDIDATES = {
     "market": ["Market_and_Exchange_Names", "Market and Exchange Names"],
     "report_date": ["Report_Date_as_YYYY-MM-DD", "Report_Date_as_MM_DD_YYYY"],
     "report_date_yymmdd": ["As_of_Date_In_Form_YYMMDD", "As of Date in Form YYMMDD"],
     "open_interest": ["Open_Interest_All", "Open_Interest"],
-    "commercial_long": ["Commercial_Positions_Long_All", "Commercial_Positions_Long"],
-    "commercial_short": ["Commercial_Positions_Short_All", "Commercial_Positions_Short"],
-    "noncommercial_long": ["Noncommercial_Positions_Long_All", "Noncommercial_Positions_Long"],
-    "noncommercial_short": ["Noncommercial_Positions_Short_All", "Noncommercial_Positions_Short"],
+    "commercial_long": [
+        "Comm_Positions_Long_All",
+        "Commercial_Positions_Long_All",
+        "Commercial_Positions_Long",
+    ],
+    "commercial_short": [
+        "Comm_Positions_Short_All",
+        "Commercial_Positions_Short_All",
+        "Commercial_Positions_Short",
+    ],
+    "noncommercial_long": [
+        "NonComm_Positions_Long_All",
+        "Noncommercial_Positions_Long_All",
+        "Noncommercial_Positions_Long",
+    ],
+    "noncommercial_short": [
+        "NonComm_Positions_Short_All",
+        "Noncommercial_Positions_Short_All",
+        "Noncommercial_Positions_Short",
+    ],
 }
 
 
@@ -87,7 +108,10 @@ def _tidy_raw(raw: pd.DataFrame) -> pd.DataFrame:
         k for k in ("market", "open_interest", "commercial_long", "commercial_short") if col[k] is None
     ]
     if missing_required:
-        raise ValueError(f"CFTC file missing expected columns for: {missing_required}")
+        raise ValueError(
+            f"CFTC file missing expected columns for: {missing_required}. "
+            f"Actual columns in file: {raw.columns.tolist()}"
+        )
 
     if col["report_date"] is not None:
         date = pd.to_datetime(raw[col["report_date"]], errors="coerce")
