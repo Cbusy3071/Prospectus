@@ -1,6 +1,12 @@
 name: ETF COT Backtest
 
 on:
+  push:
+    branches:
+      - "claude/etf-cot-backtest-1p7p56"
+    paths:
+      - "etf_cot_backtest/**"
+      - ".github/workflows/cot-backtest.yml"
   workflow_dispatch:
     inputs:
       start:
@@ -23,7 +29,7 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python -m etf_cot_backtest.cli --start "${{ github.event.inputs.start }}" --cache-dir ./data_cache --output-dir ./output
+      - run: python -m etf_cot_backtest.cli --start "${{ github.event.inputs.start || '2011-01-01' }}" --cache-dir ./data_cache --output-dir ./output
 
       - name: Print performance summary
         run: cat ./output/performance_summary.csv
