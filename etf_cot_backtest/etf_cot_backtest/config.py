@@ -70,7 +70,10 @@ UNIVERSE = [
         etf="XLP",
         asset_class="equity_sector",
         description="Consumer Staples Select Sector",
-        cftc_market_aliases=("E-MINI S&P CONSUMER STAPLES INDEX - CHICAGO MERCANTILE EXCHANGE",),
+        cftc_market_aliases=(
+            "E-MINI S&P CONSU STAPLES INDEX - CHICAGO MERCANTILE EXCHANGE",
+            "E-MINI S&P CONSUMER STAPLES INDEX - CHICAGO MERCANTILE EXCHANGE",
+        ),
     ),
     MarketMapping(
         etf="XLU",
@@ -99,6 +102,7 @@ UNIVERSE = [
         asset_class="equity_sector",
         description="Communication Services Select Sector",
         cftc_market_aliases=(
+            "E-MINI S&P COMMUNICATION INDEX - CHICAGO MERCANTILE EXCHANGE",
             "E-MINI S&P COMMUNICATION SERVICES INDEX - CHICAGO MERCANTILE EXCHANGE",
             "E-MINI S&P COMMUNICATION SERVICES SELECT SECTOR INDEX - CHICAGO MERCANTILE EXCHANGE",
         ),

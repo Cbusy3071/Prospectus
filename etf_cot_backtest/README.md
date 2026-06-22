@@ -40,22 +40,21 @@ their own market than speculators do.
 | XLV  | Health Care             | E-MINI S&P HEALTH CARE INDEX - CME                       |
 | XLI  | Industrials             | E-MINI S&P INDUSTRIAL INDEX - CME                        |
 | XLY  | Consumer Discretionary  | E-MINI S&P CONSUMER DISCRETIONARY INDEX - CME            |
-| XLP  | Consumer Staples        | E-MINI S&P CONSUMER STAPLES INDEX - CME                  |
+| XLP  | Consumer Staples        | E-MINI S&P CONSU STAPLES INDEX - CME                     |
 | XLU  | Utilities               | E-MINI S&P UTILITIES INDEX - CME                         |
 | XLB  | Materials               | E-MINI S&P MATERIALS INDEX - CME                         |
 | XLRE | Real Estate             | E-MINI S&P REAL ESTATE INDEX - CME (+ alt names)         |
-| XLC  | Communication Services  | E-MINI S&P COMMUNICATION SERVICES INDEX - CME (+ alt names) |
+| XLC  | Communication Services  | E-MINI S&P COMMUNICATION INDEX - CME                     |
 
-CFTC's market-name text has changed wording several times across decades, so
-each entry in `config.py` lists every known/likely alias. The original nine
-sector futures launched together in 2011 with consistent naming; Real Estate
-(2016) and Communication Services (2018) were added later and CME's own
-marketing materials use slightly different naming for those two, so their
-exact CFTC `market_name` text is a best guess pending verification against a
-live download. If a future CFTC file uses wording not listed here,
-`cftc_data.fetch_legacy_cot` logs a warning naming the unmatched ETF, along
-with candidate `market_name` values found in the same download — check those
-and add the alias.
+All 11 aliases above are confirmed against a live CFTC download (run via
+GitHub Actions, since this sandbox blocks cftc.gov). Two needed correcting
+from an initial guess: CFTC's actual text truncates "Consumer" to "Consu"
+for Staples, and omits "Services" for Communication. CFTC's market-name text
+has changed wording across decades, so each entry in `config.py` also lists
+older/alternate aliases as fallbacks. If a future CFTC file uses wording not
+listed here, `cftc_data.fetch_legacy_cot` logs a warning naming the unmatched
+ETF, along with candidate `market_name` values found in the same download —
+check those and add the alias.
 
 SPY (`config.BENCHMARK_TICKER`) is fetched separately as an external
 buy-and-hold benchmark; it is not part of the COT-driven sector universe.
