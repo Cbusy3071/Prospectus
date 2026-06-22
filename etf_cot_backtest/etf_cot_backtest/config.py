@@ -118,6 +118,7 @@ SHIFT_WEEKS = 13               # measure the *change* in commercial positioning 
 SIGNAL_SMOOTH_SPAN = 4         # EMA span (weeks) to damp whipsaw in the change signal
 INVERT_SIGNAL = True           # fade the commercials: rising commercial net-long reads bearish
 REBALANCE_WEEKS = 4            # rebalance every Nth weekly print (~monthly) to cut turnover
+TILT_STRENGTH = 1.0            # 0 = equal-weight, 1 = max tilt that still keeps weights non-negative
 PUBLICATION_LAG_DAYS = 3       # CFTC reports Tuesday positioning, releases it the following Friday
 TRANSACTION_COST_BPS = 5.0     # round-trip cost assumption per unit of turnover
 BENCHMARK_TICKER = "SPY"

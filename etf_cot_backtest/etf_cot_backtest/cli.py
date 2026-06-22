@@ -27,6 +27,7 @@ from .config import (
     REBALANCE_WEEKS,
     SHIFT_WEEKS,
     SIGNAL_SMOOTH_SPAN,
+    TILT_STRENGTH,
     TRANSACTION_COST_BPS,
 )
 from .metrics import compare_strategies
@@ -50,6 +51,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="Rebalance every Nth weekly print (~monthly at 4) to cut turnover")
     p.add_argument("--no-invert", dest="invert", action="store_false", default=INVERT_SIGNAL,
                    help="Follow (instead of fade) the commercial shift")
+    p.add_argument("--tilt-strength", type=float, default=TILT_STRENGTH,
+                   help="0=equal-weight, 1=max tilt (always fully invested, never cash)")
     p.add_argument("--lag-days", type=int, default=PUBLICATION_LAG_DAYS)
     p.add_argument("--tx-cost-bps", type=float, default=TRANSACTION_COST_BPS)
     p.add_argument("--cash-return", type=float, default=0.0, help="Per-period return assumed on uninvested cash")
@@ -84,12 +87,12 @@ def main(argv: list[str] | None = None) -> None:
 
     returns_universe = weekly_returns[list(ETF_TICKERS)]
 
-    def _build_weights(signal_long: pd.DataFrame, rebalance_dates: pd.DatetimeIndex) -> pd.DataFrame:
+    def _build_weights(signal_long: pd.DataFrame, rebalance_dates: pd.DatetimeIndex, weight_fn=portfolio.signal_to_weights) -> pd.DataFrame:
         signal_long = portfolio.apply_publication_lag(signal_long, lag_days=args.lag_days)
         signal_wide = portfolio.pivot_signal(signal_long)
         aligned = portfolio.align_to_rebalance_dates(signal_wide, rebalance_dates)
         tradeable = returns_universe.loc[rebalance_dates].notna()
-        return portfolio.signal_to_weights(aligned, tradeable_mask=tradeable)
+        return weight_fn(aligned, tradeable_mask=tradeable)
 
     # New strategy: fade the *change* in commercial positioning, rebalanced
     # ~monthly to keep turnover down.
@@ -108,6 +111,17 @@ def main(argv: list[str] | None = None) -> None:
     rebalance_dates = portfolio.subsample_rebalance_dates(weekly_returns.index, args.rebalance_weeks)
     shift_weights = _build_weights(shift_signal, rebalance_dates)
 
+    # Same shift signal, but always fully invested (equal-weight base, tilted
+    # by signal rank) instead of long-only-or-cash -- isolates whether the
+    # signal adds value on top of just owning the sector universe.
+    tilt_weights = _build_weights(
+        shift_signal,
+        rebalance_dates,
+        weight_fn=lambda aligned, tradeable_mask: portfolio.signal_to_tilt_weights(
+            aligned, tradeable_mask=tradeable_mask, tilt_strength=args.tilt_strength
+        ),
+    )
+
     # Reference: the original level "follow the commercials" strategy, weekly.
     level_signal = signals.compute_commercial_zscore(
         cot_raw, lookback=args.lookback_weeks, min_periods=args.min_lookback_weeks
@@ -118,6 +132,9 @@ def main(argv: list[str] | None = None) -> None:
     shift_result = backtest.run_backtest(
         shift_weights, returns_universe, tx_cost_bps=args.tx_cost_bps, cash_return=args.cash_return
     )
+    tilt_result = backtest.run_backtest(
+        tilt_weights, returns_universe, tx_cost_bps=args.tx_cost_bps, cash_return=args.cash_return
+    )
     level_result = backtest.run_backtest(
         level_weights, returns_universe, tx_cost_bps=args.tx_cost_bps, cash_return=args.cash_return
     )
@@ -127,6 +144,7 @@ def main(argv: list[str] | None = None) -> None:
     summary = compare_strategies(
         {
             "fade_commercial_shift": shift_result.returns,
+            "tilt_commercial_shift": tilt_result.returns,
             "follow_commercial_level": level_result.returns,
             "equal_weight_universe": benchmark_ew,
             "spy_buy_and_hold": benchmark_spy,
@@ -134,6 +152,7 @@ def main(argv: list[str] | None = None) -> None:
     )
     summary["ann_turnover"] = [
         _annualized_turnover(shift_result.turnover),
+        _annualized_turnover(tilt_result.turnover),
         _annualized_turnover(level_result.turnover),
         0.0,  # static buy-and-hold benchmarks
         0.0,
@@ -149,7 +168,8 @@ def main(argv: list[str] | None = None) -> None:
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        shift_result.nav.plot(ax=ax, label="Fade commercial shift (~monthly)")
+        shift_result.nav.plot(ax=ax, label="Fade commercial shift, long-only (~monthly)")
+        tilt_result.nav.plot(ax=ax, label="Fade commercial shift, always-invested tilt (~monthly)")
         level_result.nav.plot(ax=ax, label="Follow commercial level (weekly)")
         (1 + benchmark_ew.fillna(0)).cumprod().plot(ax=ax, label="Equal-weight universe")
         (1 + benchmark_spy.fillna(0)).cumprod().plot(ax=ax, label="SPY buy & hold")

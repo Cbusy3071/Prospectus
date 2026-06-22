@@ -117,3 +117,30 @@ def test_shift_signal_monthly_rebalance_pipeline():
     assert monthly.nav.notna().all() and (monthly.nav > 0).all()
     # Rebalancing ~monthly instead of weekly should not trade more often.
     assert monthly.turnover.sum() <= weekly.turnover.sum() + 1e-9
+
+
+def test_shift_signal_tilt_pipeline_is_always_fully_invested():
+    # Same shift signal as the long-only path, but via signal_to_tilt_weights:
+    # never goes to cash, isolating the signal's value from market-timing drag.
+    etfs = [m.etf for m in UNIVERSE]
+    cot = _synthetic_cot(etfs)
+    returns = _synthetic_returns(etfs, listing_offsets={"XLC": 80})
+
+    shift = signals.compute_commercial_shift_signal(
+        cot, shift_weeks=13, lookback=52, min_periods=26, smooth_span=4, invert=True
+    )
+    shift = portfolio.apply_publication_lag(shift, lag_days=3)
+    shift_wide = portfolio.pivot_signal(shift)
+
+    rebalance_dates = portfolio.subsample_rebalance_dates(returns.index, every_n_weeks=4)
+    aligned = portfolio.align_to_rebalance_dates(shift_wide, rebalance_dates)
+    tradeable = returns.loc[rebalance_dates].notna()
+    weights = portfolio.signal_to_tilt_weights(aligned, tradeable_mask=tradeable, tilt_strength=1.0)
+
+    assert (weights >= -1e-9).all().all()
+    # Fully invested at every rebalance, unlike the long-only/cash variant.
+    assert weights.sum(axis=1).round(6).eq(1.0).all()
+    assert (weights.loc[returns["XLC"].loc[rebalance_dates].isna(), "XLC"] == 0).all()
+
+    result = backtest.run_backtest(weights, returns, tx_cost_bps=5.0)
+    assert result.nav.notna().all() and (result.nav > 0).all()

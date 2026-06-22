@@ -65,3 +65,44 @@ def signal_to_weights(signal_wide: pd.DataFrame, tradeable_mask: pd.DataFrame | 
     weights = clipped.div(row_sum.where(row_sum != 0, 1.0), axis=0)
     weights = weights.where(row_sum != 0, 0.0)
     return weights
+
+
+def signal_to_tilt_weights(
+    signal_wide: pd.DataFrame, tradeable_mask: pd.DataFrame | None = None, tilt_strength: float = 1.0
+) -> pd.DataFrame:
+    """Always-fully-invested weights: equal-weight base, tilted by signal rank.
+
+    `signal_to_weights` goes to cash whenever a market's signal is non-positive,
+    which couples the signal to market-timing/cash-drag effects on top of
+    whatever sector-selection value it has. This variant never holds cash: every
+    tradeable market starts at `1/n` and the signal only redistributes weight
+    among them (highest-ranked gets the most, lowest-ranked the least), so a
+    flat or negative signal everywhere still leaves the portfolio fully invested
+    at equal weight. A market with no signal yet (NaN, e.g. still in its
+    z-score warm-up) is treated as rank-neutral -- it keeps its `1/n` base with
+    no tilt.
+
+    `tilt_strength=1.0` is the most extreme tilt for which weights stay
+    non-negative (the lowest-ranked tradeable market in a window goes to ~0,
+    the highest-ranked to ~`2/n`); `0.0` collapses to equal weight.
+    """
+    if tradeable_mask is None:
+        tradeable_mask = pd.DataFrame(True, index=signal_wide.index, columns=signal_wide.columns)
+    tradeable_mask = tradeable_mask.reindex_like(signal_wide).fillna(False)
+
+    n = tradeable_mask.sum(axis=1)
+    base = tradeable_mask.div(n.where(n != 0, 1.0), axis=0)
+
+    # Rank only within the subset that's both tradeable and has a usable
+    # (non-NaN) signal; ranking ignores NaNs by construction, so a market
+    # outside that subset simply never gets a tilt away from its `1/n` base.
+    valid = tradeable_mask & signal_wide.notna()
+    valid_n = valid.sum(axis=1)
+    ranked = signal_wide.where(valid).rank(axis=1, method="average")
+    centered = ranked.sub((valid_n + 1) / 2.0, axis=0)
+
+    k = tilt_strength * 2.0 / (n * (valid_n - 1)).where(valid_n > 1, 1.0)
+    tilt = centered.mul(k, axis=0).where(valid, 0.0).fillna(0.0)
+
+    weights = (base + tilt).where(tradeable_mask, 0.0)
+    return weights.clip(lower=0.0)

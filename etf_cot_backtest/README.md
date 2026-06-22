@@ -36,9 +36,31 @@ than its level:
 5. **Backtest.** Weights are held between rebalances; a configurable
    transaction-cost drag is charged on turnover at the moment a position
    changes (`backtest.run_backtest`).
-6. **Comparison.** Reported alongside the original `follow_commercial_level`
+6. **Comparison.** Reported alongside `tilt_commercial_shift` (same signal,
+   different weighting — see below), the original `follow_commercial_level`
    (weekly) strategy, an equal-weight buy-and-hold of the same sector universe,
    and SPY buy-and-hold (`metrics.compare_strategies`).
+
+### Long-only-or-cash vs. always-invested tilt
+
+The long-only weighting above goes to cash whenever every sector's signal is
+non-positive, which against a long bull market mostly means sitting out the
+broad market rally rather than picking the right sectors within it — a
+historical run showed a ~30% win rate for both COT variants, i.e. the
+portfolio was flat/in cash most of the time. That cash drag is a confound: it
+makes it impossible to tell whether the *signal* is bad or just the *all-or-
+nothing exposure* is bad.
+
+`tilt_commercial_shift` uses the identical shift signal but
+`portfolio.signal_to_tilt_weights` instead: every tradeable sector starts at
+equal weight (`1/n`) and the signal only redistributes weight by rank around
+that base (highest-ranked sector gets the most, lowest-ranked the least), so
+the portfolio is **always fully invested** — a flat or all-negative signal
+just leaves it at equal weight rather than cash. `--tilt-strength` (default
+1.0) controls how aggressive the redistribution is; `1.0` is the most extreme
+tilt for which weights stay non-negative, `0.0` collapses to equal weight.
+Comparing `tilt_commercial_shift` to `equal_weight_universe` isolates the
+signal's stock(sector)-picking value from market-timing/cash-drag effects.
 
 ### ETF universe (`config.UNIVERSE`)
 
@@ -109,9 +131,10 @@ cd etf_cot_backtest
 pytest
 ```
 
-All 28 tests run against synthetic data with no network access required:
+All 34 tests run against synthetic data with no network access required:
 unit tests for CFTC column/alias matching, the level and shift signal math,
-lag handling, weight construction, backtest accounting (hand-verified against
-manual calculations), and performance metrics, plus integration tests running
-the full pipeline end-to-end (both the weekly level path and the ~monthly
-shift path) on a synthetic multi-year, multi-sector dataset.
+lag handling, both weight-construction schemes (long-only-or-cash and the
+always-invested tilt), backtest accounting (hand-verified against manual
+calculations), and performance metrics, plus integration tests running the
+full pipeline end-to-end (the weekly level path, the ~monthly shift path, and
+the ~monthly tilt path) on a synthetic multi-year, multi-sector dataset.
