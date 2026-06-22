@@ -37,7 +37,8 @@ than its level:
    transaction-cost drag is charged on turnover at the moment a position
    changes (`backtest.run_backtest`).
 6. **Comparison.** Reported alongside `tilt_commercial_shift` (same signal,
-   different weighting — see below), the original `follow_commercial_level`
+   different weighting — see below), `meanrev_commercial_level` (a
+   mean-reversion variant — see below), the original `follow_commercial_level`
    (weekly) strategy, an equal-weight buy-and-hold of the same sector universe,
    and SPY buy-and-hold (`metrics.compare_strategies`).
 
@@ -61,6 +62,24 @@ just leaves it at equal weight rather than cash. `--tilt-strength` (default
 tilt for which weights stay non-negative, `0.0` collapses to equal weight.
 Comparing `tilt_commercial_shift` to `equal_weight_universe` isolates the
 signal's stock(sector)-picking value from market-timing/cash-drag effects.
+
+### Mean-reversion on positioning extremes (`meanrev_commercial_level`)
+
+A different read on the *level* (`signals.compute_commercial_meanrev_signal`):
+instead of tracking commercial positioning continuously, only act when it's at
+an **extreme** of its own history and bet the extreme reverts. It z-scores the
+level (same as `follow_commercial_level`), fades it (`invert=True`: commercials
+crowded net-long reads bearish, an extreme net-short deviation reads bullish),
+then applies a **deadband** by subtracting `--meanrev-threshold` (default 1.0)
+from the faded z-score. Paired with the long-only `signal_to_weights`, a sector
+earns weight only once positioning is at least that many standard deviations
+into the buy tail; in the normal zone, and on the overcrowded tail, the sector
+sits in cash. In words: *sell out of a sector when commercials get crowded,
+buy it when they hit a high net-short deviation, do nothing in between.* It
+rebalances ~monthly like the shift strategies. Because the deadband keeps the
+portfolio flat much of the time, expect it to capture far less market beta than
+the always-invested tilt — it's a test of whether *the extremes specifically*
+carry signal, not a core holding.
 
 ### ETF universe (`config.UNIVERSE`)
 
@@ -131,10 +150,11 @@ cd etf_cot_backtest
 pytest
 ```
 
-All 34 tests run against synthetic data with no network access required:
-unit tests for CFTC column/alias matching, the level and shift signal math,
-lag handling, both weight-construction schemes (long-only-or-cash and the
-always-invested tilt), backtest accounting (hand-verified against manual
-calculations), and performance metrics, plus integration tests running the
-full pipeline end-to-end (the weekly level path, the ~monthly shift path, and
-the ~monthly tilt path) on a synthetic multi-year, multi-sector dataset.
+All 38 tests run against synthetic data with no network access required:
+unit tests for CFTC column/alias matching, the level/shift/mean-reversion
+signal math, lag handling, both weight-construction schemes (long-only-or-cash
+and the always-invested tilt), backtest accounting (hand-verified against
+manual calculations), and performance metrics, plus integration tests running
+the full pipeline end-to-end (the weekly level path, the ~monthly shift path,
+the ~monthly tilt path, and the ~monthly mean-reversion path) on a synthetic
+multi-year, multi-sector dataset.

@@ -144,3 +144,32 @@ def test_shift_signal_tilt_pipeline_is_always_fully_invested():
 
     result = backtest.run_backtest(weights, returns, tx_cost_bps=5.0)
     assert result.nav.notna().all() and (result.nav > 0).all()
+
+
+def test_meanrev_signal_pipeline_only_trades_at_extremes():
+    # Mirrors cli.py's mean-reversion path: fade level extremes, long-only with
+    # a z-score deadband, so most rebalances hold few/no positions.
+    etfs = [m.etf for m in UNIVERSE]
+    cot = _synthetic_cot(etfs)
+    returns = _synthetic_returns(etfs, listing_offsets={"XLC": 80})
+
+    mr = signals.compute_commercial_meanrev_signal(
+        cot, lookback=52, min_periods=26, threshold=1.0, invert=True
+    )
+    mr = portfolio.apply_publication_lag(mr, lag_days=3)
+    mr_wide = portfolio.pivot_signal(mr)
+
+    rebalance_dates = portfolio.subsample_rebalance_dates(returns.index, every_n_weeks=4)
+    aligned = portfolio.align_to_rebalance_dates(mr_wide, rebalance_dates)
+    tradeable = returns.loc[rebalance_dates].notna()
+    weights = portfolio.signal_to_weights(aligned, tradeable_mask=tradeable)
+
+    assert (weights >= 0).all().all()
+    assert (weights.sum(axis=1) <= 1.0 + 1e-9).all()
+    assert (weights.loc[returns["XLC"].loc[rebalance_dates].isna(), "XLC"] == 0).all()
+    # A z-score deadband should leave most names at zero weight on most dates,
+    # so total invested exposure is well below the always-invested 1.0 average.
+    assert weights.sum(axis=1).mean() < 1.0
+
+    result = backtest.run_backtest(weights, returns, tx_cost_bps=5.0)
+    assert result.nav.notna().all() and (result.nav > 0).all()

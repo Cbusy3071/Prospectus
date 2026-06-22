@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from etf_cot_backtest.signals import (
+    compute_commercial_meanrev_signal,
     compute_commercial_shift_signal,
     compute_commercial_zscore,
     net_pct_open_interest,
@@ -95,3 +96,36 @@ def test_shift_signal_smoothing_reduces_volatility():
         _cot_rows("A", rng_seq), shift_weeks=1, lookback=4, min_periods=2, smooth_span=4, invert=False
     )
     assert smoothed["signal"].dropna().diff().abs().mean() < raw["signal"].dropna().diff().abs().mean()
+
+
+def test_meanrev_level_z_matches_plain_zscore():
+    # The mean-reversion signal's level_z is the same rolling z-score as the
+    # standalone level signal -- it just gets faded + thresholded afterwards.
+    df = _cot_rows("A", [0.1, 0.1, 0.1, 0.1, 0.5])
+    mr = compute_commercial_meanrev_signal(df, lookback=4, min_periods=4)
+    plain = compute_commercial_zscore(df, lookback=4, min_periods=4)
+    assert mr["level_z"].iloc[-1] == pytest.approx(plain["signal"].iloc[-1])
+    assert mr["level_z"].iloc[-1] == pytest.approx(math.sqrt(3))
+
+
+def test_meanrev_crowded_long_sells_extreme_short_buys():
+    # invert=True: commercials crowded net-long -> non-positive signal (cash),
+    # commercials at an extreme net-short deviation -> positive signal (buy).
+    crowded_long = compute_commercial_meanrev_signal(
+        _cot_rows("A", [0.1, 0.1, 0.1, 0.1, 0.5]), lookback=4, min_periods=4, threshold=1.0, invert=True
+    )
+    extreme_short = compute_commercial_meanrev_signal(
+        _cot_rows("A", [0.5, 0.5, 0.5, 0.5, 0.1]), lookback=4, min_periods=4, threshold=1.0, invert=True
+    )
+    assert crowded_long["signal"].iloc[-1] < 0  # sell out when it overcrowds
+    assert extreme_short["signal"].iloc[-1] > 0  # buy the high net-short deviation
+
+
+def test_meanrev_threshold_widens_deadband():
+    # Raising the threshold by d lowers the signal by exactly d everywhere, so a
+    # reading that was a (small) buy can be pushed back into the no-trade zone.
+    seq = [0.5, 0.5, 0.5, 0.5, 0.1]
+    low = compute_commercial_meanrev_signal(_cot_rows("A", seq), lookback=4, min_periods=4, threshold=1.0, invert=True)
+    high = compute_commercial_meanrev_signal(_cot_rows("A", seq), lookback=4, min_periods=4, threshold=2.0, invert=True)
+    assert (low["signal"].iloc[-1] - high["signal"].iloc[-1]) == pytest.approx(1.0)
+    assert low["signal"].iloc[-1] > 0 and high["signal"].iloc[-1] < 0

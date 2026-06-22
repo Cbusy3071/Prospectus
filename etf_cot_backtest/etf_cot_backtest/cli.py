@@ -22,6 +22,7 @@ from .config import (
     ETF_TICKERS,
     INVERT_SIGNAL,
     LOOKBACK_WEEKS,
+    MEANREV_THRESHOLD,
     MIN_LOOKBACK_WEEKS,
     PUBLICATION_LAG_DAYS,
     REBALANCE_WEEKS,
@@ -53,6 +54,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="Follow (instead of fade) the commercial shift")
     p.add_argument("--tilt-strength", type=float, default=TILT_STRENGTH,
                    help="0=equal-weight, 1=max tilt (always fully invested, never cash)")
+    p.add_argument("--meanrev-threshold", type=float, default=MEANREV_THRESHOLD,
+                   help="z-score deadband for the mean-reversion strategy: only buy a sector "
+                        "once positioning is this many std into the extreme tail")
     p.add_argument("--lag-days", type=int, default=PUBLICATION_LAG_DAYS)
     p.add_argument("--tx-cost-bps", type=float, default=TRANSACTION_COST_BPS)
     p.add_argument("--cash-return", type=float, default=0.0, help="Per-period return assumed on uninvested cash")
@@ -122,6 +126,22 @@ def main(argv: list[str] | None = None) -> None:
         ),
     )
 
+    # Mean-reversion: fade level extremes. Sell out (cash) where commercials are
+    # crowded net-long, buy only where they hit an extreme net-short deviation;
+    # a z-score deadband keeps it flat in the normal zone. Long-only, ~monthly.
+    LOG.info(
+        "Computing commercial mean-reversion signal (threshold=%.2f, invert=%s)",
+        args.meanrev_threshold, args.invert,
+    )
+    meanrev_signal = signals.compute_commercial_meanrev_signal(
+        cot_raw,
+        lookback=args.lookback_weeks,
+        min_periods=args.min_lookback_weeks,
+        threshold=args.meanrev_threshold,
+        invert=args.invert,
+    )
+    meanrev_weights = _build_weights(meanrev_signal, rebalance_dates)
+
     # Reference: the original level "follow the commercials" strategy, weekly.
     level_signal = signals.compute_commercial_zscore(
         cot_raw, lookback=args.lookback_weeks, min_periods=args.min_lookback_weeks
@@ -135,6 +155,9 @@ def main(argv: list[str] | None = None) -> None:
     tilt_result = backtest.run_backtest(
         tilt_weights, returns_universe, tx_cost_bps=args.tx_cost_bps, cash_return=args.cash_return
     )
+    meanrev_result = backtest.run_backtest(
+        meanrev_weights, returns_universe, tx_cost_bps=args.tx_cost_bps, cash_return=args.cash_return
+    )
     level_result = backtest.run_backtest(
         level_weights, returns_universe, tx_cost_bps=args.tx_cost_bps, cash_return=args.cash_return
     )
@@ -145,6 +168,7 @@ def main(argv: list[str] | None = None) -> None:
         {
             "fade_commercial_shift": shift_result.returns,
             "tilt_commercial_shift": tilt_result.returns,
+            "meanrev_commercial_level": meanrev_result.returns,
             "follow_commercial_level": level_result.returns,
             "equal_weight_universe": benchmark_ew,
             "spy_buy_and_hold": benchmark_spy,
@@ -153,6 +177,7 @@ def main(argv: list[str] | None = None) -> None:
     summary["ann_turnover"] = [
         _annualized_turnover(shift_result.turnover),
         _annualized_turnover(tilt_result.turnover),
+        _annualized_turnover(meanrev_result.turnover),
         _annualized_turnover(level_result.turnover),
         0.0,  # static buy-and-hold benchmarks
         0.0,
@@ -170,6 +195,7 @@ def main(argv: list[str] | None = None) -> None:
         fig, ax = plt.subplots(figsize=(10, 6))
         shift_result.nav.plot(ax=ax, label="Fade commercial shift, long-only (~monthly)")
         tilt_result.nav.plot(ax=ax, label="Fade commercial shift, always-invested tilt (~monthly)")
+        meanrev_result.nav.plot(ax=ax, label="Mean-reversion on level extremes (~monthly)")
         level_result.nav.plot(ax=ax, label="Follow commercial level (weekly)")
         (1 + benchmark_ew.fillna(0)).cumprod().plot(ax=ax, label="Equal-weight universe")
         (1 + benchmark_spy.fillna(0)).cumprod().plot(ax=ax, label="SPY buy & hold")

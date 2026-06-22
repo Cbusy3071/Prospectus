@@ -18,6 +18,15 @@ markets of very different sizes are comparable:
    the speculative/momentum flow the commercials are leaning against. The
    change signal is whippier than the level, so it is EMA-smoothed to keep
    turnover down.
+
+3. ``compute_commercial_meanrev_signal`` -- a mean-reversion read on the
+   *level*. Rather than tracking the level continuously like (1), it only acts
+   once positioning is at an extreme of its own history (a z-score deadband),
+   betting the extreme reverts: a sector where commercials are crowded net-long
+   is treated as overbought (no position / sell out), and one where they are at
+   an extreme net-short deviation is treated as a buy. ``invert=True`` is what
+   makes "crowded long = sell, extreme short = buy"; ``invert=False`` flips it
+   back to the classic follow-the-commercials direction.
 """
 
 from __future__ import annotations
@@ -27,6 +36,7 @@ import pandas as pd
 from .config import (
     INVERT_SIGNAL,
     LOOKBACK_WEEKS,
+    MEANREV_THRESHOLD,
     MIN_LOOKBACK_WEEKS,
     SHIFT_WEEKS,
     SIGNAL_SMOOTH_SPAN,
@@ -111,3 +121,49 @@ def compute_commercial_shift_signal(
         df["signal"] = df["signal_raw"]
 
     return df[["date", "etf", "net_pct_oi", "shift", "signal"]].reset_index(drop=True)
+
+
+def compute_commercial_meanrev_signal(
+    cot_df: pd.DataFrame,
+    lookback: int = LOOKBACK_WEEKS,
+    min_periods: int = MIN_LOOKBACK_WEEKS,
+    threshold: float = MEANREV_THRESHOLD,
+    invert: bool = INVERT_SIGNAL,
+) -> pd.DataFrame:
+    """Mean-reversion signal on the *level* of commercial positioning.
+
+    Fades positioning extremes instead of tracking the level continuously: bet
+    that a crowded position reverts. Per ETF:
+
+    1. ``level_z`` = rolling z-score of net_pct_oi (same as
+       ``compute_commercial_zscore``) -- how stretched is positioning vs this
+       sector's own history.
+    2. ``inv`` = the fade direction. With ``invert=True`` (default) it is
+       ``-level_z``: commercials crowded net-long (high z) reads bearish,
+       commercials at an extreme net-short deviation (very negative z) reads
+       bullish. ``invert=False`` keeps the classic follow direction.
+    3. ``signal`` = ``inv - threshold``. This bakes in a **deadband**: paired
+       with ``signal_to_weights`` (which keeps only the positive part), a sector
+       earns weight only once ``inv`` clears ``threshold`` -- i.e. positioning
+       is at least ``threshold`` z-scores into the favourable tail. In the
+       normal zone, and on the overcrowded tail, the signal is non-positive so
+       the sector sits in cash ("sell out when it overcrowds"); weight goes only
+       to sectors at the buy extreme, scaled by how far past the threshold they
+       are.
+
+    Output: long-format frame [date, etf, net_pct_oi, level_z, signal], with
+    NaN until ``min_periods`` history is available.
+    """
+    df = net_pct_open_interest(cot_df).sort_values(["etf", "date"]).reset_index(drop=True)
+
+    def _zscore(series: pd.Series) -> pd.Series:
+        roll = series.rolling(window=lookback, min_periods=min_periods)
+        return (series - roll.mean()) / roll.std(ddof=0)
+
+    z = df.groupby("etf")["net_pct_oi"].transform(_zscore)
+    df["level_z"] = z
+
+    inv = -z if invert else z
+    df["signal"] = inv - threshold
+
+    return df[["date", "etf", "net_pct_oi", "level_z", "signal"]].reset_index(drop=True)
