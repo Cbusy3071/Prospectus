@@ -24,6 +24,20 @@ def pivot_signal(signal_df: pd.DataFrame, value_col: str = "signal") -> pd.DataF
     return signal_df.pivot(index="effective_date", columns="etf", values=value_col).sort_index()
 
 
+def subsample_rebalance_dates(
+    weekly_index: pd.DatetimeIndex, every_n_weeks: int = 4
+) -> pd.DatetimeIndex:
+    """Keep every Nth weekly date so the portfolio rebalances less often.
+
+    The signal still updates weekly; we just act on it every ``every_n_weeks``
+    weeks (~monthly at the default 4) and hold in between, which is the simplest
+    lever for cutting turnover. ``every_n_weeks <= 1`` keeps the weekly grid.
+    """
+    if every_n_weeks <= 1:
+        return weekly_index
+    return weekly_index[::every_n_weeks]
+
+
 def align_to_rebalance_dates(signal_wide: pd.DataFrame, rebalance_dates: pd.DatetimeIndex) -> pd.DataFrame:
     """For each rebalance date, look up the most recent signal already public by then.
 

@@ -81,3 +81,39 @@ def test_full_pipeline_runs_and_produces_sane_output():
     assert set(summary.index) == {"strategy", "benchmark"}
     assert summary.loc["strategy", "n_periods"] == len(returns)
     assert np.isfinite(summary.loc["strategy", "cagr"])
+
+
+def test_shift_signal_monthly_rebalance_pipeline():
+    # Mirrors cli.py's new path: fade-the-shift signal aligned to a ~monthly
+    # rebalance grid, weights held between rebalances by the backtest engine.
+    etfs = [m.etf for m in UNIVERSE]
+    cot = _synthetic_cot(etfs)
+    returns = _synthetic_returns(etfs, listing_offsets={"XLC": 80})
+
+    shift = signals.compute_commercial_shift_signal(
+        cot, shift_weeks=13, lookback=52, min_periods=26, smooth_span=4, invert=True
+    )
+    shift = portfolio.apply_publication_lag(shift, lag_days=3)
+    shift_wide = portfolio.pivot_signal(shift)
+
+    rebalance_dates = portfolio.subsample_rebalance_dates(returns.index, every_n_weeks=4)
+    assert len(rebalance_dates) < len(returns.index)
+
+    aligned = portfolio.align_to_rebalance_dates(shift_wide, rebalance_dates)
+    tradeable = returns.loc[rebalance_dates].notna()
+    weights = portfolio.signal_to_weights(aligned, tradeable_mask=tradeable)
+
+    assert (weights >= 0).all().all()
+    assert (weights.sum(axis=1) <= 1.0 + 1e-9).all()
+    assert (weights.loc[returns["XLC"].loc[rebalance_dates].isna(), "XLC"] == 0).all()
+
+    monthly = backtest.run_backtest(weights, returns, tx_cost_bps=5.0)
+    weekly_weights = portfolio.signal_to_weights(
+        portfolio.align_to_rebalance_dates(shift_wide, returns.index),
+        tradeable_mask=returns.notna(),
+    )
+    weekly = backtest.run_backtest(weekly_weights, returns, tx_cost_bps=5.0)
+
+    assert monthly.nav.notna().all() and (monthly.nav > 0).all()
+    # Rebalancing ~monthly instead of weekly should not trade more often.
+    assert monthly.turnover.sum() <= weekly.turnover.sum() + 1e-9

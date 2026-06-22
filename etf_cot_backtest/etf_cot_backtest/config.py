@@ -114,6 +114,10 @@ ETF_TICKERS = tuple(m.etf for m in UNIVERSE)
 # Strategy defaults.
 LOOKBACK_WEEKS = 156           # ~3 years of weekly COT prints for the z-score window
 MIN_LOOKBACK_WEEKS = 52        # require at least 1 year of history before trusting a z-score
+SHIFT_WEEKS = 13               # measure the *change* in commercial positioning over ~a quarter
+SIGNAL_SMOOTH_SPAN = 4         # EMA span (weeks) to damp whipsaw in the change signal
+INVERT_SIGNAL = True           # fade the commercials: rising commercial net-long reads bearish
+REBALANCE_WEEKS = 4            # rebalance every Nth weekly print (~monthly) to cut turnover
 PUBLICATION_LAG_DAYS = 3       # CFTC reports Tuesday positioning, releases it the following Friday
 TRANSACTION_COST_BPS = 5.0     # round-trip cost assumption per unit of turnover
 BENCHMARK_TICKER = "SPY"

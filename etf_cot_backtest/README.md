@@ -1,34 +1,44 @@
-# ETF / COT backtest — "follow the commercials"
+# ETF / COT backtest — sector rotation from commercial positioning
 
-Backtests a sector-rotation strategy across the 11 Select Sector SPDR ETFs that
-allocates based on the CFTC Commitments of Traders (COT) report: weight toward
-sectors where **commercial hedgers** (producers, merchants, end-users — the
-report's "smart money") are more net-long their sector's futures than their
-own recent history, on the theory that they have better information about
-their own market than speculators do.
+Backtests a sector-rotation strategy across the 11 Select Sector SPDR ETFs
+driven by the CFTC Commitments of Traders (COT) report and the positioning of
+**commercial hedgers**.
+
+The classic commodity read is "follow the commercials" — they're the report's
+"smart money", so go long where they're net-long. For *equity sectors* that
+read loses badly to plain buy-and-hold (see results below): the commercials
+here behave more like the side leaning *against* trends. So the default
+strategy does the opposite, and keys off the *change* in positioning rather
+than its level:
 
 ## Strategy
 
-1. **Signal.** For each market, `net_pct_oi = (commercial_long -
-   commercial_short) / open_interest`, then a rolling z-score of that ratio
-   against the market's own trailing 3-year history (`signals.py`). Scaling by
-   open interest makes markets of very different sizes comparable; the
-   z-score makes markets with different structural commercial biases (e.g.
-   commercials are structurally net short gold, net long the dollar index)
-   comparable to each other.
-2. **Publication lag.** CFTC reports Tuesday's positioning but doesn't release
+1. **Signal (`signals.compute_commercial_shift_signal`).** For each sector,
+   `net_pct_oi = (commercial_long - commercial_short) / open_interest`. Take the
+   **shift** — its change over `--shift-weeks` (default 13, ~a quarter) — then a
+   rolling z-score of that change against the sector's own history so a "big
+   move for this sector" is comparable across sectors. By default the sign is
+   **inverted** (`--no-invert` to disable): a rising commercial net-long reads
+   *bearish*, i.e. we side with the speculative/momentum flow the commercials
+   are leaning against.
+2. **Turnover control.** A change signal whipsaws far more than a level signal,
+   so it's EMA-smoothed over `--smooth-span` weeks (default 4) and the portfolio
+   rebalances only every `--rebalance-weeks` weeks (default 4, ~monthly) rather
+   than weekly. Reported `ann_turnover` shows the effect.
+3. **Publication lag.** CFTC reports Tuesday's positioning but doesn't release
    it until the following Friday. The backtest shifts every signal's
    effective date forward by `--lag-days` (default 3) so it can never trade on
    information before it was public (`portfolio.apply_publication_lag`).
-3. **Weights.** Long-only: weight is proportional to *positive* z-scores only;
-   markets with a non-positive signal get zero weight, and if every market is
-   non-positive the whole portfolio sits in cash for that period
-   (`portfolio.signal_to_weights`).
-4. **Backtest.** Weekly rebalance grid (matching COT's weekly cadence), with a
-   configurable transaction-cost drag charged on turnover at the moment a
-   position changes (`backtest.run_backtest`).
-5. **Benchmarks.** Equal-weight buy-and-hold of the same sector universe, and
-   SPY buy-and-hold (`backtest.equal_weight_benchmark`, `metrics.compare_strategies`).
+4. **Weights.** Long-only: weight is proportional to the *positive* part of the
+   signal only; sectors with a non-positive signal get zero weight, and if
+   every sector is non-positive the whole portfolio sits in cash for that
+   period (`portfolio.signal_to_weights`).
+5. **Backtest.** Weights are held between rebalances; a configurable
+   transaction-cost drag is charged on turnover at the moment a position
+   changes (`backtest.run_backtest`).
+6. **Comparison.** Reported alongside the original `follow_commercial_level`
+   (weekly) strategy, an equal-weight buy-and-hold of the same sector universe,
+   and SPY buy-and-hold (`metrics.compare_strategies`).
 
 ### ETF universe (`config.UNIVERSE`)
 
@@ -99,8 +109,9 @@ cd etf_cot_backtest
 pytest
 ```
 
-All 24 tests run against synthetic data with no network access required:
-unit tests for CFTC column/alias matching, the signal math, lag handling,
-weight construction, backtest accounting (hand-verified against manual
-calculations), and performance metrics, plus one integration test running
-the full pipeline end-to-end on a synthetic multi-year, multi-sector dataset.
+All 28 tests run against synthetic data with no network access required:
+unit tests for CFTC column/alias matching, the level and shift signal math,
+lag handling, weight construction, backtest accounting (hand-verified against
+manual calculations), and performance metrics, plus integration tests running
+the full pipeline end-to-end (both the weekly level path and the ~monthly
+shift path) on a synthetic multi-year, multi-sector dataset.
