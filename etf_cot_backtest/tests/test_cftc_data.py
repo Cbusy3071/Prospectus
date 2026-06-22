@@ -1,6 +1,7 @@
 import pandas as pd
 
 from etf_cot_backtest.cftc_data import _map_to_etf, _tidy_raw
+from etf_cot_backtest.config import MarketMapping
 
 
 def _raw_legacy_row(market_name, report_date, open_interest, comm_long, comm_short):
@@ -94,6 +95,14 @@ def test_tidy_raw_accepts_real_bulk_historical_schema():
 
 
 def test_map_to_etf_matches_known_alias():
+    universe = [
+        MarketMapping(
+            etf="GLD",
+            asset_class="commodity",
+            description="Gold",
+            cftc_market_aliases=("GOLD - COMMODITY EXCHANGE INC.",),
+        )
+    ]
     tidy = pd.DataFrame(
         {
             "date": pd.to_datetime(["2020-01-07", "2020-01-07"]),
@@ -103,7 +112,7 @@ def test_map_to_etf_matches_known_alias():
             "commercial_short": [40, 80],
         }
     )
-    mapped = _map_to_etf(tidy)
+    mapped = _map_to_etf(tidy, universe=universe)
     assert list(mapped["etf"]) == ["GLD"]
     assert "market_name" not in mapped.columns
 
@@ -113,6 +122,17 @@ def test_map_to_etf_sums_concurrently_reported_aliases():
     # reported CFTC markets on the same date, unlike other ETFs' aliases which
     # are sequential renames of one contract -- these must collapse to one row
     # per (date, etf) rather than crashing the downstream pivot on duplicate keys.
+    universe = [
+        MarketMapping(
+            etf="SPY",
+            asset_class="equity_index",
+            description="S&P 500",
+            cftc_market_aliases=(
+                "E-MINI S&P 500 - CHICAGO MERCANTILE EXCHANGE",
+                "S&P 500 STOCK INDEX - CHICAGO MERCANTILE EXCHANGE",
+            ),
+        )
+    ]
     tidy = pd.DataFrame(
         {
             "date": pd.to_datetime(["2020-01-07", "2020-01-07"]),
@@ -125,7 +145,7 @@ def test_map_to_etf_sums_concurrently_reported_aliases():
             "commercial_short": [300, 60],
         }
     )
-    mapped = _map_to_etf(tidy)
+    mapped = _map_to_etf(tidy, universe=universe)
     assert len(mapped) == 1
     assert mapped["etf"].iloc[0] == "SPY"
     assert mapped["open_interest"].iloc[0] == 1200

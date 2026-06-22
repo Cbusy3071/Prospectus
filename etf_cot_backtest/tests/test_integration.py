@@ -54,8 +54,8 @@ def _synthetic_returns(etfs, n_weeks=260, seed=11, listing_offsets=None):
 def test_full_pipeline_runs_and_produces_sane_output():
     etfs = [m.etf for m in UNIVERSE]
     cot = _synthetic_cot(etfs)
-    # pretend CPER (smallest/youngest ETF in the real universe) only started trading partway through
-    returns = _synthetic_returns(etfs, listing_offsets={"CPER": 80})
+    # pretend XLC (youngest ETF in the real universe, inception June 2018) only started trading partway through
+    returns = _synthetic_returns(etfs, listing_offsets={"XLC": 80})
 
     signal_long = signals.compute_commercial_zscore(cot, lookback=52, min_periods=26)
     signal_long = portfolio.apply_publication_lag(signal_long, lag_days=3)
@@ -66,7 +66,7 @@ def test_full_pipeline_runs_and_produces_sane_output():
     weights = portfolio.signal_to_weights(aligned, tradeable_mask=tradeable)
 
     # No weight on an asset before it's tradeable.
-    assert (weights.loc[returns["CPER"].isna(), "CPER"] == 0).all()
+    assert (weights.loc[returns["XLC"].isna(), "XLC"] == 0).all()
     # Weights at every rebalance date are non-negative and sum to at most 1.
     assert (weights >= 0).all().all()
     assert (weights.sum(axis=1) <= 1.0 + 1e-9).all()

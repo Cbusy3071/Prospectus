@@ -2,10 +2,9 @@
 
 The CFTC "Legacy" Commitments of Traders report identifies markets by a free-text
 ``Market_and_Exchange_Names`` field rather than a stable numeric key in the bulk
-text files, and that text has changed wording several times across decades
-(e.g. crude oil's contract name changed from "CRUDE OIL, LIGHT SWEET" to
-"WTI-PHYSICAL"). Each entry below lists every known historical alias so the
-fetcher can match a market regardless of which era of the file it appears in.
+text files, and that text has changed wording several times across decades.
+Each entry below lists every known/likely alias so the fetcher can match a
+market regardless of which era of the file it appears in.
 """
 
 from dataclasses import dataclass, field
@@ -19,102 +18,89 @@ class MarketMapping:
     cftc_market_aliases: tuple = field(default_factory=tuple)
 
 
-# Multi-asset universe: each ETF is paired with the CFTC futures market whose
-# Commitments of Traders positioning is the closest available proxy for it.
+# Equity sector universe: the 11 Select Sector SPDR ETFs, each paired with its
+# CME E-mini S&P Select Sector futures contract -- the closest available COT
+# proxy for sector-level commercial positioning. CME launched the original
+# nine sectors in 2011; Real Estate (2016) and Communication Services (2018)
+# were added later and CME's own marketing materials use slightly different
+# naming for those two, so their aliases below include more guesses. If a
+# guess is wrong, cftc_data._map_to_etf logs candidate market_name values
+# pulled from the live data to fix it from a single run.
 UNIVERSE = [
     MarketMapping(
-        etf="GLD",
-        asset_class="commodity",
-        description="Gold",
-        cftc_market_aliases=("GOLD - COMMODITY EXCHANGE INC.",),
+        etf="XLF",
+        asset_class="equity_sector",
+        description="Financial Select Sector",
+        cftc_market_aliases=("E-MINI S&P FINANCIAL INDEX - CHICAGO MERCANTILE EXCHANGE",),
     ),
     MarketMapping(
-        etf="SLV",
-        asset_class="commodity",
-        description="Silver",
-        cftc_market_aliases=("SILVER - COMMODITY EXCHANGE INC.",),
+        etf="XLE",
+        asset_class="equity_sector",
+        description="Energy Select Sector",
+        cftc_market_aliases=("E-MINI S&P ENERGY INDEX - CHICAGO MERCANTILE EXCHANGE",),
     ),
     MarketMapping(
-        etf="USO",
-        asset_class="commodity",
-        description="WTI Crude Oil",
+        etf="XLK",
+        asset_class="equity_sector",
+        description="Technology Select Sector",
+        cftc_market_aliases=("E-MINI S&P TECHNOLOGY INDEX - CHICAGO MERCANTILE EXCHANGE",),
+    ),
+    MarketMapping(
+        etf="XLV",
+        asset_class="equity_sector",
+        description="Health Care Select Sector",
+        cftc_market_aliases=("E-MINI S&P HEALTH CARE INDEX - CHICAGO MERCANTILE EXCHANGE",),
+    ),
+    MarketMapping(
+        etf="XLI",
+        asset_class="equity_sector",
+        description="Industrial Select Sector",
+        cftc_market_aliases=("E-MINI S&P INDUSTRIAL INDEX - CHICAGO MERCANTILE EXCHANGE",),
+    ),
+    MarketMapping(
+        etf="XLY",
+        asset_class="equity_sector",
+        description="Consumer Discretionary Select Sector",
         cftc_market_aliases=(
-            "WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE",
-            "CRUDE OIL, LIGHT SWEET-WTI - NEW YORK MERCANTILE EXCHANGE",
-            "CRUDE OIL, LIGHT SWEET - NEW YORK MERCANTILE EXCHANGE",
+            "E-MINI S&P CONSUMER DISCRETIONARY INDEX - CHICAGO MERCANTILE EXCHANGE",
+            "E-MINI S&P CONSUMER DISC INDEX - CHICAGO MERCANTILE EXCHANGE",
         ),
     ),
     MarketMapping(
-        etf="UNG",
-        asset_class="commodity",
-        description="Natural Gas",
+        etf="XLP",
+        asset_class="equity_sector",
+        description="Consumer Staples Select Sector",
+        cftc_market_aliases=("E-MINI S&P CONSUMER STAPLES INDEX - CHICAGO MERCANTILE EXCHANGE",),
+    ),
+    MarketMapping(
+        etf="XLU",
+        asset_class="equity_sector",
+        description="Utilities Select Sector",
+        cftc_market_aliases=("E-MINI S&P UTILITIES INDEX - CHICAGO MERCANTILE EXCHANGE",),
+    ),
+    MarketMapping(
+        etf="XLB",
+        asset_class="equity_sector",
+        description="Materials Select Sector",
+        cftc_market_aliases=("E-MINI S&P MATERIALS INDEX - CHICAGO MERCANTILE EXCHANGE",),
+    ),
+    MarketMapping(
+        etf="XLRE",
+        asset_class="equity_sector",
+        description="Real Estate Select Sector",
         cftc_market_aliases=(
-            "NATURAL GAS - NEW YORK MERCANTILE EXCHANGE",
-            "NAT GAS NYME - NEW YORK MERCANTILE EXCHANGE",
+            "E-MINI S&P REAL ESTATE INDEX - CHICAGO MERCANTILE EXCHANGE",
+            "E-MINI REAL ESTATE SELECT SECTOR INDEX - CHICAGO MERCANTILE EXCHANGE",
+            "E-MINI S&P REAL ESTATE SELECT SECTOR INDEX - CHICAGO MERCANTILE EXCHANGE",
         ),
     ),
     MarketMapping(
-        etf="CPER",
-        asset_class="commodity",
-        description="Copper",
+        etf="XLC",
+        asset_class="equity_sector",
+        description="Communication Services Select Sector",
         cftc_market_aliases=(
-            "COPPER-GRADE #1 - COMMODITY EXCHANGE INC.",
-            "COPPER- #1 - COMMODITY EXCHANGE INC.",
-        ),
-    ),
-    MarketMapping(
-        etf="UUP",
-        asset_class="currency",
-        description="US Dollar Index",
-        cftc_market_aliases=(
-            "USD INDEX - ICE FUTURES U.S.",
-            "U.S. DOLLAR INDEX - ICE FUTURES U.S.",
-        ),
-    ),
-    MarketMapping(
-        etf="FXE",
-        asset_class="currency",
-        description="Euro FX",
-        cftc_market_aliases=("EURO FX - CHICAGO MERCANTILE EXCHANGE",),
-    ),
-    MarketMapping(
-        etf="FXY",
-        asset_class="currency",
-        description="Japanese Yen",
-        cftc_market_aliases=("JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE",),
-    ),
-    MarketMapping(
-        etf="FXA",
-        asset_class="currency",
-        description="Australian Dollar",
-        cftc_market_aliases=("AUSTRALIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",),
-    ),
-    MarketMapping(
-        etf="TLT",
-        asset_class="rates",
-        description="20+ Year Treasury Bonds",
-        cftc_market_aliases=(
-            "U.S. TREASURY BONDS - CHICAGO BOARD OF TRADE",
-            "LONG-TERM U.S. TREASURY BONDS - CHICAGO BOARD OF TRADE",
-        ),
-    ),
-    MarketMapping(
-        etf="IEF",
-        asset_class="rates",
-        description="7-10 Year Treasury Notes",
-        cftc_market_aliases=(
-            "UST 10Y NOTE - CHICAGO BOARD OF TRADE",
-            "U.S. TREASURY NOTES, 10-YR - CHICAGO BOARD OF TRADE",
-            "10-YEAR U.S. TREASURY NOTES - CHICAGO BOARD OF TRADE",
-        ),
-    ),
-    MarketMapping(
-        etf="SPY",
-        asset_class="equity_index",
-        description="S&P 500",
-        cftc_market_aliases=(
-            "E-MINI S&P 500 - CHICAGO MERCANTILE EXCHANGE",
-            "S&P 500 STOCK INDEX - CHICAGO MERCANTILE EXCHANGE",
+            "E-MINI S&P COMMUNICATION SERVICES INDEX - CHICAGO MERCANTILE EXCHANGE",
+            "E-MINI S&P COMMUNICATION SERVICES SELECT SECTOR INDEX - CHICAGO MERCANTILE EXCHANGE",
         ),
     ),
 ]

@@ -145,7 +145,16 @@ def _tidy_raw(raw: pd.DataFrame) -> pd.DataFrame:
     return tidy.dropna(subset=["date", "market_name"])
 
 
-def _map_to_etf(tidy: pd.DataFrame) -> pd.DataFrame:
+_GENERIC_DESCRIPTION_WORDS = {"SELECT", "SECTOR"}
+
+
+def _keyword_stems(description: str) -> list[str]:
+    """First-6-chars stem of each non-generic word, robust to plural/singular CFTC wording."""
+    words = [w.upper() for w in description.split() if w.upper() not in _GENERIC_DESCRIPTION_WORDS]
+    return [w[:6] for w in words]
+
+
+def _map_to_etf(tidy: pd.DataFrame, universe: list | None = None) -> pd.DataFrame:
     """Collapse the free-text market_name column down to our ETF universe.
 
     A couple of ETFs' aliases correspond to more than one concurrently-reported
@@ -154,9 +163,15 @@ def _map_to_etf(tidy: pd.DataFrame) -> pd.DataFrame:
     futures as separate rows every week since the E-mini launched in 1997. Each
     (date, etf) pair is collapsed to a single row by summing the numeric columns
     so every ETF has exactly one observation per report date.
+
+    `universe` defaults to config.UNIVERSE; tests pass a smaller synthetic list
+    so they don't break every time the real universe changes.
     """
+    if universe is None:
+        universe = UNIVERSE
+
     alias_to_etf = {}
-    for mapping in UNIVERSE:
+    for mapping in universe:
         for alias in mapping.cftc_market_aliases:
             alias_to_etf[alias.upper().strip()] = mapping.etf
 
@@ -165,15 +180,24 @@ def _map_to_etf(tidy: pd.DataFrame) -> pd.DataFrame:
     matched = tidy.dropna(subset=["etf"])
 
     matched_etfs = set(matched["etf"].unique())
-    configured_etfs = {m.etf for m in UNIVERSE}
+    configured_etfs = {m.etf for m in universe}
     missing = configured_etfs - matched_etfs
     if missing:
-        LOG.warning(
-            "No CFTC rows matched the configured aliases for: %s. "
-            "The CFTC market name text may have changed; check market_name values "
-            "in the raw download and update config.UNIVERSE aliases.",
-            sorted(missing),
+        descriptions = {m.etf: m.description for m in universe}
+        unmatched_names = sorted(
+            tidy.loc[tidy["etf"].isna(), "market_name"].str.upper().str.strip().unique()
         )
+        for etf in sorted(missing):
+            stems = _keyword_stems(descriptions[etf])
+            candidates = [name for name in unmatched_names if any(stem in name for stem in stems)]
+            LOG.warning(
+                "No CFTC rows matched the configured aliases for %s (%s). "
+                "The CFTC market name text may have changed; update config.UNIVERSE aliases. "
+                "Candidate market_name values found in this download: %s",
+                etf,
+                descriptions[etf],
+                candidates or "(none found -- check the full unmatched market_name list)",
+            )
 
     matched = matched.drop(columns=["market_name"])
     numeric_cols = [c for c in matched.columns if c not in ("date", "etf")]
